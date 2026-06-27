@@ -69,10 +69,16 @@ export function readSddcIgnore(rootDir: string): string[] {
 
 function findPackageJsonFiles(
   dir: string,
-  excludePatterns: readonly string[],
+  activePatterns: readonly string[],
   rootDir: string,
   results: string[] = [],
 ): string[] {
+  // Merge any .sddcignore found in the current directory into the active patterns.
+  // These additional patterns then apply to all subdirectories from here down.
+  const localIgnore = readSddcIgnore(dir);
+  const patternsForChildren =
+    localIgnore.length > 0 ? [...activePatterns, ...localIgnore] : activePatterns;
+
   let entries: string[];
   try {
     entries = readdirSync(dir);
@@ -90,8 +96,8 @@ function findPackageJsonFiles(
       continue;
     }
     if (isDir) {
-      if (!shouldExcludeDir(fullPath, rootDir, excludePatterns)) {
-        findPackageJsonFiles(fullPath, excludePatterns, rootDir, results);
+      if (!shouldExcludeDir(fullPath, rootDir, patternsForChildren)) {
+        findPackageJsonFiles(fullPath, patternsForChildren, rootDir, results);
       }
     } else if (entry === 'package.json') {
       results.push(fullPath);
@@ -104,9 +110,7 @@ export function checkDependencies(
   rootDir: string,
   excludePatterns: readonly string[] = [],
 ): DependencyReport[] {
-  const ignorePatterns = readSddcIgnore(rootDir);
-  const allPatterns = [...ignorePatterns, ...excludePatterns];
-  const packageJsonFiles = findPackageJsonFiles(rootDir, allPatterns, rootDir);
+  const packageJsonFiles = findPackageJsonFiles(rootDir, excludePatterns, rootDir);
   const depMap = new Map<string, Map<string, string[]>>();
 
   for (const filePath of packageJsonFiles) {

@@ -296,11 +296,61 @@ describe('readSddcIgnore', () => {
     expect(readSddcIgnore(dir)).toEqual(['dist', 'build', '*.generated']);
   });
 
-  it('applies .sddcignore patterns automatically during scan', () => {
+  it('applies root .sddcignore patterns during scan', () => {
     const dir = makeTmpDir();
     writeFileSync(join(dir, '.sddcignore'), 'legacy\n');
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
     writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+
+    const reports = checkDependencies(dir);
+    expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(1);
+  });
+
+  it('applies .sddcignore from a subdirectory to that subtree only', () => {
+    const dir = makeTmpDir();
+    // packages/.sddcignore excludes "internal" inside packages/
+    mkdirSync(join(dir, 'packages'), { recursive: true });
+    writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'packages', 'app'), { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { react: '^16.0.0' },
+    });
+
+    // packages/internal should be excluded → no conflict
+    const reports = checkDependencies(dir);
+    expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(1);
+  });
+
+  it('does not apply a subdirectory .sddcignore to sibling directories', () => {
+    const dir = makeTmpDir();
+    // packages/.sddcignore excludes "internal", but other/ is a sibling of packages/
+    mkdirSync(join(dir, 'packages'), { recursive: true });
+    writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    // "internal" as a sibling of packages/ — should NOT be excluded
+    writePackageJson(join(dir, 'internal'), { dependencies: { react: '^16.0.0' } });
+
+    const reports = checkDependencies(dir);
+    expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(2);
+  });
+
+  it('accumulates patterns from root and nested .sddcignore files', () => {
+    const dir = makeTmpDir();
+    writeFileSync(join(dir, '.sddcignore'), 'legacy\n');
+    mkdirSync(join(dir, 'packages'), { recursive: true });
+    writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
+
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    // excluded by root .sddcignore
+    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^17.0.0' } });
+    // excluded by packages/.sddcignore
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { react: '^16.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'app'), {
+      dependencies: { react: '^18.0.0' },
+    });
 
     const reports = checkDependencies(dir);
     expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(1);
