@@ -1,9 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it, afterEach } from 'vitest';
 import { PROGRAM_NAME, VERSION, run } from '../src/cli.js';
-import { checkDependencies } from '../src/checker.js';
+import { checkDependencies, readSddcIgnore, updateDependencyVersion } from '../src/checker.js';
 
 // ─── CLI flag tests ────────────────────────────────────────────────────────────
 
@@ -223,5 +223,187 @@ describe('run — scanning', () => {
     const result = run(['--no-color'], dir);
     expect(result.code).toBe(0);
     expect(result.stdout).toContain('react');
+  });
+});
+
+// ─── --exclude option ──────────────────────────────────────────────────────────
+
+describe('--exclude / -e', () => {
+  it('excludes a directory by exact name', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+
+    // Without exclude: conflict
+    expect(checkDependencies(dir).find((r) => r.name === 'react')?.versions).toHaveLength(2);
+
+    // With exclude: no conflict
+    const reports = checkDependencies(dir, ['legacy']);
+    expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(1);
+  });
+
+  it('excludes a directory by relative path', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, { dependencies: { lodash: '^4.0.0' } });
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { lodash: '^3.0.0' },
+    });
+
+    const reports = checkDependencies(dir, ['packages/internal']);
+    expect(reports.find((r) => r.name === 'lodash')?.versions).toHaveLength(1);
+  });
+
+  it('excludes directories matching a glob pattern', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, { dependencies: { zod: '^3.0.0' } });
+    writePackageJson(join(dir, 'packages', 'app-legacy'), {
+      dependencies: { zod: '^2.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'lib-legacy'), {
+      dependencies: { zod: '^1.0.0' },
+    });
+
+    const reports = checkDependencies(dir, ['*-legacy']);
+    expect(reports.find((r) => r.name === 'zod')?.versions).toHaveLength(1);
+  });
+
+  it('accepts multiple exclude patterns via CLI', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'old'), { dependencies: { react: '^17.0.0' } });
+    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+
+    const result = run([dir, '-e', 'old', '-e', 'legacy', '--no-color']);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain('all consistent');
+  });
+});
+
+// ─── .sddcignore ──────────────────────────────────────────────────────────────
+
+describe('readSddcIgnore', () => {
+  it('returns empty array when no .sddcignore exists', () => {
+    const dir = makeTmpDir();
+    expect(readSddcIgnore(dir)).toEqual([]);
+  });
+
+  it('reads patterns from .sddcignore, skipping comments and blank lines', () => {
+    const dir = makeTmpDir();
+    writeFileSync(
+      join(dir, '.sddcignore'),
+      '# comment\n\ndist\nbuild\n  \n*.generated\n',
+    );
+    expect(readSddcIgnore(dir)).toEqual(['dist', 'build', '*.generated']);
+  });
+
+  it('applies .sddcignore patterns automatically during scan', () => {
+    const dir = makeTmpDir();
+    writeFileSync(join(dir, '.sddcignore'), 'legacy\n');
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+
+    const reports = checkDependencies(dir);
+    expect(reports.find((r) => r.name === 'react')?.versions).toHaveLength(1);
+  });
+});
+
+// ─── --errors-only / -o ───────────────────────────────────────────────────────
+
+describe('--errors-only / -o', () => {
+  it('hides consistent packages but still counts them in the summary', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, {
+      dependencies: { react: '^18.0.0', typescript: '^5.0.0' },
+    });
+    writePackageJson(join(dir, 'sub'), {
+      dependencies: { react: '^17.0.0', typescript: '^5.0.0' },
+    });
+
+    const result = run([dir, '--errors-only', '--no-color']);
+    expect(result.code).toBe(1);
+    // typescript (consistent) must not appear in the output
+    expect(result.stdout).not.toContain('✓');
+    // react (conflict) must appear
+    expect(result.stdout).toContain('✗');
+    // summary must still reflect total package count
+    expect(result.stdout).toContain('2 packages checked');
+  });
+
+  it('shows only the summary when there are no conflicts', () => {
+    const dir = makeTmpDir();
+    writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
+
+    const result = run([dir, '-o', '--no-color']);
+    expect(result.code).toBe(0);
+    expect(result.stdout).not.toContain('✓');
+    expect(result.stdout).toContain('all consistent');
+  });
+});
+
+// ─── updateDependencyVersion ───────────────────────────────────────────────────
+
+describe('updateDependencyVersion', () => {
+  it('updates a version in dependencies', () => {
+    const dir = makeTmpDir();
+    const file = join(dir, 'package.json');
+    writeFileSync(file, JSON.stringify({ dependencies: { react: '^17.0.0' } }, null, 2));
+
+    updateDependencyVersion(file, 'react', '^18.0.0');
+
+    const updated = JSON.parse(readFileSync(file, 'utf-8')) as {
+      dependencies: Record<string, string>;
+    };
+    expect(updated.dependencies['react']).toBe('^18.0.0');
+  });
+
+  it('updates across all dependency fields', () => {
+    const dir = makeTmpDir();
+    const file = join(dir, 'package.json');
+    writeFileSync(
+      file,
+      JSON.stringify(
+        { dependencies: { ts: '^4.0.0' }, devDependencies: { ts: '^4.0.0' } },
+        null,
+        2,
+      ),
+    );
+
+    updateDependencyVersion(file, 'ts', '^5.0.0');
+
+    const updated = JSON.parse(readFileSync(file, 'utf-8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(updated.dependencies['ts']).toBe('^5.0.0');
+    expect(updated.devDependencies['ts']).toBe('^5.0.0');
+  });
+
+  it('preserves other fields in the package.json', () => {
+    const dir = makeTmpDir();
+    const file = join(dir, 'package.json');
+    writeFileSync(
+      file,
+      JSON.stringify({ name: 'my-pkg', version: '1.0.0', dependencies: { react: '^17.0.0' } }, null, 2),
+    );
+
+    updateDependencyVersion(file, 'react', '^18.0.0');
+
+    const updated = JSON.parse(readFileSync(file, 'utf-8')) as {
+      name: string;
+      version: string;
+    };
+    expect(updated.name).toBe('my-pkg');
+    expect(updated.version).toBe('1.0.0');
+  });
+
+  it('does nothing when the package is not present', () => {
+    const dir = makeTmpDir();
+    const file = join(dir, 'package.json');
+    const original = JSON.stringify({ dependencies: { lodash: '^4.0.0' } }, null, 2);
+    writeFileSync(file, original);
+
+    updateDependencyVersion(file, 'react', '^18.0.0');
+
+    expect(readFileSync(file, 'utf-8')).toBe(original);
   });
 });

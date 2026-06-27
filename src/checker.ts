@@ -1,5 +1,11 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, join, relative, sep } from 'node:path';
 
 export interface DependencyUsage {
   version: string;
@@ -26,7 +32,47 @@ const DEP_FIELDS: ReadonlyArray<keyof PackageJson> = [
   'optionalDependencies',
 ];
 
-function findPackageJsonFiles(dir: string, results: string[] = []): string[] {
+function globToRegex(pattern: string): RegExp {
+  // Escape all regex special chars except *, then replace * with [^/]*
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('^' + escaped.replace(/\*/g, '[^/]*') + '$');
+}
+
+function shouldExcludeDir(
+  absolutePath: string,
+  rootDir: string,
+  patterns: readonly string[],
+): boolean {
+  if (patterns.length === 0) return false;
+  // Normalise to forward slashes so patterns work cross-platform
+  const relPath = relative(rootDir, absolutePath).split(sep).join('/');
+  const dirName = basename(absolutePath);
+  for (const pattern of patterns) {
+    const regex = globToRegex(pattern);
+    if (regex.test(dirName) || regex.test(relPath)) return true;
+  }
+  return false;
+}
+
+export function readSddcIgnore(rootDir: string): string[] {
+  const file = join(rootDir, '.sddcignore');
+  if (!existsSync(file)) return [];
+  try {
+    return readFileSync(file, 'utf-8')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0 && !l.startsWith('#'));
+  } catch {
+    return [];
+  }
+}
+
+function findPackageJsonFiles(
+  dir: string,
+  excludePatterns: readonly string[],
+  rootDir: string,
+  results: string[] = [],
+): string[] {
   let entries: string[];
   try {
     entries = readdirSync(dir);
@@ -44,7 +90,9 @@ function findPackageJsonFiles(dir: string, results: string[] = []): string[] {
       continue;
     }
     if (isDir) {
-      findPackageJsonFiles(fullPath, results);
+      if (!shouldExcludeDir(fullPath, rootDir, excludePatterns)) {
+        findPackageJsonFiles(fullPath, excludePatterns, rootDir, results);
+      }
     } else if (entry === 'package.json') {
       results.push(fullPath);
     }
@@ -52,8 +100,13 @@ function findPackageJsonFiles(dir: string, results: string[] = []): string[] {
   return results;
 }
 
-export function checkDependencies(rootDir: string): DependencyReport[] {
-  const packageJsonFiles = findPackageJsonFiles(rootDir);
+export function checkDependencies(
+  rootDir: string,
+  excludePatterns: readonly string[] = [],
+): DependencyReport[] {
+  const ignorePatterns = readSddcIgnore(rootDir);
+  const allPatterns = [...ignorePatterns, ...excludePatterns];
+  const packageJsonFiles = findPackageJsonFiles(rootDir, allPatterns, rootDir);
   const depMap = new Map<string, Map<string, string[]>>();
 
   for (const filePath of packageJsonFiles) {
@@ -71,7 +124,6 @@ export function checkDependencies(rootDir: string): DependencyReport[] {
       if (!deps) continue;
 
       for (const [name, version] of Object.entries(deps)) {
-        // Skip if already recorded for this file (same dep in multiple fields)
         if (seen.has(name)) continue;
         seen.add(name);
 
@@ -104,4 +156,31 @@ export function checkDependencies(rootDir: string): DependencyReport[] {
 
   results.sort((a, b) => a.name.localeCompare(b.name));
   return results;
+}
+
+export function updateDependencyVersion(
+  filePath: string,
+  packageName: string,
+  newVersion: string,
+): void {
+  const content = readFileSync(filePath, 'utf-8');
+  const raw = JSON.parse(content) as Record<string, unknown>;
+
+  const indentMatch = content.match(/\n( +)"/);
+  const indent = indentMatch?.[1]?.length ?? 2;
+
+  let modified = false;
+  for (const field of DEP_FIELDS) {
+    const deps = raw[field] as Record<string, string> | undefined;
+    if (deps?.[packageName] !== undefined) {
+      deps[packageName] = newVersion;
+      modified = true;
+    }
+  }
+
+  if (modified) {
+    const newContent =
+      JSON.stringify(raw, null, indent) + (content.endsWith('\n') ? '\n' : '');
+    writeFileSync(filePath, newContent);
+  }
 }
