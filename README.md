@@ -42,14 +42,14 @@ sddc [options] [directory]
 
 ### Options
 
-| Flag                    | Description                                             |
-| ----------------------- | ------------------------------------------------------- |
-| `-h`, `--help`          | Print this help message and exit                        |
-| `-v`, `--version`       | Print the version number and exit                       |
-| `-e`, `--exclude <pat>` | Exclude directories matching `<pat>` (repeatable)       |
-| `-o`, `--errors-only`   | Only display packages with version conflicts            |
-| `-i`, `--interactive`   | Interactively resolve conflicts by choosing a version   |
-| `--no-color`            | Disable coloured output                                 |
+| Flag                    | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `-h`, `--help`          | Print this help message and exit                      |
+| `-v`, `--version`       | Print the version number and exit                     |
+| `-e`, `--exclude <pat>` | Exclude directories matching `<pat>` (repeatable)     |
+| `-o`, `--errors-only`   | Only display packages with version conflicts          |
+| `-i`, `--interactive`   | Interactively resolve conflicts by choosing a version |
+| `--no-color`            | Disable coloured output                               |
 
 ### Examples
 
@@ -87,7 +87,7 @@ sddc -e dist -e build -e '*.test'
 ### Via `.sddcignore`
 
 Place a `.sddcignore` file in any directory. Its patterns apply to all
-subdirectories of that directory — analogous to `.gitignore`.  Multiple
+subdirectories of that directory — analogous to `.gitignore`. Multiple
 `.sddcignore` files at different levels accumulate: patterns from an ancestor
 directory remain active in all descendants.
 
@@ -104,18 +104,19 @@ Lines beginning with `#` and blank lines are ignored.
 ### Pattern syntax
 
 A pattern matches against:
+
 - the **directory name** (e.g. `dist` matches any directory named `dist`)
 - the **relative path** from the scan root (e.g. `packages/internal`)
 
 The wildcard `*` matches any sequence of characters within a **single** path
-segment.  It does not cross directory boundaries.
+segment. It does not cross directory boundaries.
 
-| Pattern         | Matches                                          |
-| --------------- | ------------------------------------------------ |
-| `dist`          | Any directory named `dist` at any depth          |
-| `packages/old`  | Only `packages/old` relative to the scan root    |
-| `*.generated`   | Any directory whose name ends in `.generated`    |
-| `test-*`        | Any directory whose name starts with `test-`     |
+| Pattern        | Matches                                       |
+| -------------- | --------------------------------------------- |
+| `dist`         | Any directory named `dist` at any depth       |
+| `packages/old` | Only `packages/old` relative to the scan root |
+| `*.generated`  | Any directory whose name ends in `.generated` |
+| `test-*`       | Any directory whose name starts with `test-`  |
 
 ---
 
@@ -139,7 +140,7 @@ every conflicting package:
 - Press **Enter** (empty) to skip this package.
 
 After all choices are collected, `sddc` updates every affected `package.json`.
-Only files that currently carry a *different* version are rewritten.
+Only files that currently carry a _different_ version are rewritten.
 
 > **Note:** Interactive mode requires a TTY (`stdin` must be a terminal).
 
@@ -149,8 +150,8 @@ Only files that currently carry a *different* version are rewritten.
 
 Versions are compared as **plain strings** — no semver resolution is performed.
 `"^1.0.0"` and `"1.0.0"` are therefore treated as distinct versions and will
-be reported as a conflict.  This is intentional: the goal is to detect
-inconsistencies in how versions are *written*, not just what they resolve to.
+be reported as a conflict. This is intentional: the goal is to detect
+inconsistencies in how versions are _written_, not just what they resolve to.
 
 ---
 

@@ -160,7 +160,9 @@ describe('run — --exclude', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
     writePackageJson(join(dir, 'old'), { dependencies: { react: '^17.0.0' } });
-    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+    writePackageJson(join(dir, 'legacy'), {
+      dependencies: { react: '^16.0.0' },
+    });
 
     const result = run([dir, '-e', 'old', '-e', 'legacy', '--no-color']);
     expect(result.code).toBe(0);
@@ -174,7 +176,9 @@ describe('run — --errors-only', () => {
   it('hides consistent packages but keeps them in the summary count', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { react: '^18.0.0', ts: '^5.0.0' } });
-    writePackageJson(join(dir, 'sub'), { dependencies: { react: '^17.0.0', ts: '^5.0.0' } });
+    writePackageJson(join(dir, 'sub'), {
+      dependencies: { react: '^17.0.0', ts: '^5.0.0' },
+    });
 
     const result = run([dir, '--errors-only', '--no-color']);
     expect(result.code).toBe(1);

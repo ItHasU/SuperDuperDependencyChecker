@@ -42,12 +42,20 @@ export function run(argv: string[], cwd = process.cwd()): RunResult {
     reports = checkDependencies(opts.targetDir, opts.exclude);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { code: 1, stderr: `Error scanning "${opts.targetDir}": ${message}\n` };
+    return {
+      code: 1,
+      stderr: `Error scanning "${opts.targetDir}": ${message}\n`,
+    };
   }
 
   const hasConflicts = reports.some((r) => r.versions.length > 1);
   return {
     code: hasConflicts ? 1 : 0,
-    stdout: formatReport(reports, opts.targetDir, !opts.noColor, opts.errorsOnly),
+    stdout: formatReport(
+      reports,
+      opts.targetDir,
+      !opts.noColor,
+      opts.errorsOnly,
+    ),
   };
 }

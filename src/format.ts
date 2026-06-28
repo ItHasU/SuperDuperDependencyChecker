@@ -50,7 +50,9 @@ export function formatReport(
         );
 
         const maxPathLen = Math.max(
-          ...report.usages.map((u) => relative(rootDir, u.packageJsonPath).length),
+          ...report.usages.map(
+            (u) => relative(rootDir, u.packageJsonPath).length,
+          ),
         );
 
         for (const usage of report.usages) {

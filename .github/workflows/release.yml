@@ -5,12 +5,9 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write  # needed to create the GitHub Release
-
 jobs:
-  release:
-    name: Publish
+  verify:
+    name: Verify release build
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +16,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24.x
-          registry-url: https://registry.npmjs.org
           cache: npm
 
       - run: npm ci
@@ -29,13 +25,3 @@ jobs:
       - run: npm test
 
       - run: npm run build
-
-      - name: Publish to npm
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true

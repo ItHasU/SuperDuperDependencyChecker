@@ -12,7 +12,9 @@ function makePrompt(
   rl: ReturnType<typeof createInterface>,
   question: string,
 ): Promise<string> {
-  return new Promise((resolve) => rl.question(question, (a) => resolve(a.trim())));
+  return new Promise((resolve) =>
+    rl.question(question, (a) => resolve(a.trim())),
+  );
 }
 
 /**
@@ -32,7 +34,9 @@ export async function runInteractive(
   cwd = process.cwd(),
 ): Promise<number> {
   if (!process.stdin.isTTY) {
-    process.stderr.write('Interactive mode requires a terminal (stdin is not a TTY).\n');
+    process.stderr.write(
+      'Interactive mode requires a terminal (stdin is not a TTY).\n',
+    );
     return 1;
   }
 
@@ -58,7 +62,10 @@ export async function runInteractive(
   if (conflicts.length === 0) {
     process.stdout.write(
       col
-        ? colorize(`All ${reports.length} packages are consistent. Nothing to do.\n`, C.green)
+        ? colorize(
+            `All ${reports.length} packages are consistent. Nothing to do.\n`,
+            C.green,
+          )
         : `All ${reports.length} packages are consistent. Nothing to do.\n`,
     );
     return 0;
@@ -83,7 +90,9 @@ export async function runInteractive(
     for (let i = 0; i < conflicts.length; i++) {
       const report = conflicts[i]!;
       const header = `[${i + 1}/${conflicts.length}] ${report.name}`;
-      process.stdout.write(col ? colorize(header, C.bold) + '\n' : header + '\n');
+      process.stdout.write(
+        col ? colorize(header, C.bold) + '\n' : header + '\n',
+      );
 
       // Group usages by version to avoid repeating the version label
       const byVersion = new Map<string, string[]>();
@@ -101,7 +110,9 @@ export async function runInteractive(
         );
         for (const p of paths) {
           const rel = relative(opts.targetDir, p);
-          process.stdout.write(col ? `       ${colorize(rel, C.dim)}\n` : `       ${rel}\n`);
+          process.stdout.write(
+            col ? `       ${colorize(rel, C.dim)}\n` : `       ${rel}\n`,
+          );
         }
       }
 
@@ -155,7 +166,9 @@ export async function runInteractive(
     return 0;
   }
 
-  process.stdout.write(col ? colorize('Changes applied:\n', C.bold) : 'Changes applied:\n');
+  process.stdout.write(
+    col ? colorize('Changes applied:\n', C.bold) : 'Changes applied:\n',
+  );
   for (const { pkg, version, file } of applied) {
     const rel = relative(opts.targetDir, file);
     process.stdout.write(

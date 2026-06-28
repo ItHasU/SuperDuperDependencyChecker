@@ -4,7 +4,13 @@
  * Covers: directory scanning, exclude patterns, .sddcignore, conflict
  * detection, version deduplication, and the updateDependencyVersion helper.
  */
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, it, expect, afterEach } from 'vitest';
@@ -59,9 +65,16 @@ describe('checkDependencies — scanning', () => {
 
   it('scans nested workspace packages recursively', () => {
     const dir = makeTmpDir();
-    writePackageJson(dir, { workspaces: ['packages/*'], dependencies: { ts: '^5.4.0' } });
-    writePackageJson(join(dir, 'packages', 'lib'), { dependencies: { ts: '^5.4.0' } });
-    writePackageJson(join(dir, 'packages', 'app'), { dependencies: { ts: '^5.0.0' } });
+    writePackageJson(dir, {
+      workspaces: ['packages/*'],
+      dependencies: { ts: '^5.4.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'lib'), {
+      dependencies: { ts: '^5.4.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'app'), {
+      dependencies: { ts: '^5.0.0' },
+    });
 
     const ts = checkDependencies(dir).find((r) => r.name === 'ts');
     expect(ts?.versions).toHaveLength(2);
@@ -81,7 +94,9 @@ describe('checkDependencies — scanning', () => {
   it('reports no conflict when all files agree on a version', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { lodash: '^4.17.21' } });
-    writePackageJson(join(dir, 'sub'), { dependencies: { lodash: '^4.17.21' } });
+    writePackageJson(join(dir, 'sub'), {
+      dependencies: { lodash: '^4.17.21' },
+    });
 
     const lodash = checkDependencies(dir).find((r) => r.name === 'lodash');
     expect(lodash?.versions).toEqual(['^4.17.21']);
@@ -100,7 +115,9 @@ describe('checkDependencies — scanning', () => {
 
   it('returns results sorted alphabetically by package name', () => {
     const dir = makeTmpDir();
-    writePackageJson(dir, { dependencies: { zod: '^3.0.0', axios: '^1.0.0', react: '^18.0.0' } });
+    writePackageJson(dir, {
+      dependencies: { zod: '^3.0.0', axios: '^1.0.0', react: '^18.0.0' },
+    });
 
     const names = checkDependencies(dir).map((r) => r.name);
     expect(names).toEqual([...names].sort());
@@ -135,28 +152,42 @@ describe('checkDependencies — exclude patterns', () => {
   it('excludes a directory by exact name', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
-    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+    writePackageJson(join(dir, 'legacy'), {
+      dependencies: { react: '^16.0.0' },
+    });
 
-    const react = checkDependencies(dir, ['legacy']).find((r) => r.name === 'react');
+    const react = checkDependencies(dir, ['legacy']).find(
+      (r) => r.name === 'react',
+    );
     expect(react?.versions).toHaveLength(1);
   });
 
   it('excludes a directory by relative path', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { lodash: '^4.0.0' } });
-    writePackageJson(join(dir, 'packages', 'internal'), { dependencies: { lodash: '^3.0.0' } });
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { lodash: '^3.0.0' },
+    });
 
-    const lodash = checkDependencies(dir, ['packages/internal']).find((r) => r.name === 'lodash');
+    const lodash = checkDependencies(dir, ['packages/internal']).find(
+      (r) => r.name === 'lodash',
+    );
     expect(lodash?.versions).toHaveLength(1);
   });
 
   it('excludes directories matching a glob wildcard', () => {
     const dir = makeTmpDir();
     writePackageJson(dir, { dependencies: { zod: '^3.0.0' } });
-    writePackageJson(join(dir, 'packages', 'app-legacy'), { dependencies: { zod: '^2.0.0' } });
-    writePackageJson(join(dir, 'packages', 'lib-legacy'), { dependencies: { zod: '^1.0.0' } });
+    writePackageJson(join(dir, 'packages', 'app-legacy'), {
+      dependencies: { zod: '^2.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'lib-legacy'), {
+      dependencies: { zod: '^1.0.0' },
+    });
 
-    const zod = checkDependencies(dir, ['*-legacy']).find((r) => r.name === 'zod');
+    const zod = checkDependencies(dir, ['*-legacy']).find(
+      (r) => r.name === 'zod',
+    );
     expect(zod?.versions).toHaveLength(1);
   });
 });
@@ -170,7 +201,10 @@ describe('readSddcIgnore', () => {
 
   it('parses patterns, ignoring comments and blank lines', () => {
     const dir = makeTmpDir();
-    writeFileSync(join(dir, '.sddcignore'), '# comment\n\ndist\nbuild\n  \n*.gen\n');
+    writeFileSync(
+      join(dir, '.sddcignore'),
+      '# comment\n\ndist\nbuild\n  \n*.gen\n',
+    );
     expect(readSddcIgnore(dir)).toEqual(['dist', 'build', '*.gen']);
   });
 });
@@ -180,7 +214,9 @@ describe('checkDependencies — .sddcignore integration', () => {
     const dir = makeTmpDir();
     writeFileSync(join(dir, '.sddcignore'), 'legacy\n');
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
-    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^16.0.0' } });
+    writePackageJson(join(dir, 'legacy'), {
+      dependencies: { react: '^16.0.0' },
+    });
 
     const react = checkDependencies(dir).find((r) => r.name === 'react');
     expect(react?.versions).toHaveLength(1);
@@ -191,8 +227,12 @@ describe('checkDependencies — .sddcignore integration', () => {
     mkdirSync(join(dir, 'packages'), { recursive: true });
     writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
-    writePackageJson(join(dir, 'packages', 'app'), { dependencies: { react: '^18.0.0' } });
-    writePackageJson(join(dir, 'packages', 'internal'), { dependencies: { react: '^16.0.0' } });
+    writePackageJson(join(dir, 'packages', 'app'), {
+      dependencies: { react: '^18.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { react: '^16.0.0' },
+    });
 
     const react = checkDependencies(dir).find((r) => r.name === 'react');
     expect(react?.versions).toHaveLength(1);
@@ -204,7 +244,9 @@ describe('checkDependencies — .sddcignore integration', () => {
     writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
     // "internal" at the same level as "packages" — NOT a child of packages/
-    writePackageJson(join(dir, 'internal'), { dependencies: { react: '^16.0.0' } });
+    writePackageJson(join(dir, 'internal'), {
+      dependencies: { react: '^16.0.0' },
+    });
 
     const react = checkDependencies(dir).find((r) => r.name === 'react');
     expect(react?.versions).toHaveLength(2);
@@ -216,9 +258,15 @@ describe('checkDependencies — .sddcignore integration', () => {
     mkdirSync(join(dir, 'packages'), { recursive: true });
     writeFileSync(join(dir, 'packages', '.sddcignore'), 'internal\n');
     writePackageJson(dir, { dependencies: { react: '^18.0.0' } });
-    writePackageJson(join(dir, 'legacy'), { dependencies: { react: '^17.0.0' } });
-    writePackageJson(join(dir, 'packages', 'internal'), { dependencies: { react: '^16.0.0' } });
-    writePackageJson(join(dir, 'packages', 'app'), { dependencies: { react: '^18.0.0' } });
+    writePackageJson(join(dir, 'legacy'), {
+      dependencies: { react: '^17.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'internal'), {
+      dependencies: { react: '^16.0.0' },
+    });
+    writePackageJson(join(dir, 'packages', 'app'), {
+      dependencies: { react: '^18.0.0' },
+    });
 
     const react = checkDependencies(dir).find((r) => r.name === 'react');
     expect(react?.versions).toHaveLength(1);
@@ -231,7 +279,10 @@ describe('updateDependencyVersion', () => {
   it('updates a version in dependencies', () => {
     const dir = makeTmpDir();
     const file = join(dir, 'package.json');
-    writeFileSync(file, JSON.stringify({ dependencies: { react: '^17.0.0' } }, null, 2));
+    writeFileSync(
+      file,
+      JSON.stringify({ dependencies: { react: '^17.0.0' } }, null, 2),
+    );
 
     updateDependencyVersion(file, 'react', '^18.0.0');
 
@@ -246,7 +297,11 @@ describe('updateDependencyVersion', () => {
     const file = join(dir, 'package.json');
     writeFileSync(
       file,
-      JSON.stringify({ dependencies: { ts: '^4.0.0' }, devDependencies: { ts: '^4.0.0' } }, null, 2),
+      JSON.stringify(
+        { dependencies: { ts: '^4.0.0' }, devDependencies: { ts: '^4.0.0' } },
+        null,
+        2,
+      ),
     );
 
     updateDependencyVersion(file, 'ts', '^5.0.0');
@@ -264,12 +319,23 @@ describe('updateDependencyVersion', () => {
     const file = join(dir, 'package.json');
     writeFileSync(
       file,
-      JSON.stringify({ name: 'my-pkg', version: '1.0.0', dependencies: { react: '^17.0.0' } }, null, 2),
+      JSON.stringify(
+        {
+          name: 'my-pkg',
+          version: '1.0.0',
+          dependencies: { react: '^17.0.0' },
+        },
+        null,
+        2,
+      ),
     );
 
     updateDependencyVersion(file, 'react', '^18.0.0');
 
-    const updated = JSON.parse(readFileSync(file, 'utf-8')) as { name: string; version: string };
+    const updated = JSON.parse(readFileSync(file, 'utf-8')) as {
+      name: string;
+      version: string;
+    };
     expect(updated.name).toBe('my-pkg');
     expect(updated.version).toBe('1.0.0');
   });
@@ -277,7 +343,11 @@ describe('updateDependencyVersion', () => {
   it('is a no-op when the package is not present', () => {
     const dir = makeTmpDir();
     const file = join(dir, 'package.json');
-    const original = JSON.stringify({ dependencies: { lodash: '^4.0.0' } }, null, 2);
+    const original = JSON.stringify(
+      { dependencies: { lodash: '^4.0.0' } },
+      null,
+      2,
+    );
     writeFileSync(file, original);
 
     updateDependencyVersion(file, 'react', '^18.0.0');

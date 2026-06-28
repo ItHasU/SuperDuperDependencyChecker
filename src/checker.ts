@@ -117,7 +117,9 @@ function findPackageJsonFiles(
 ): string[] {
   const localIgnore = readSddcIgnore(dir);
   const patternsForChildren =
-    localIgnore.length > 0 ? [...activePatterns, ...localIgnore] : activePatterns;
+    localIgnore.length > 0
+      ? [...activePatterns, ...localIgnore]
+      : activePatterns;
 
   let entries: string[];
   try {
@@ -169,7 +171,11 @@ export function checkDependencies(
   rootDir: string,
   excludePatterns: readonly string[] = [],
 ): DependencyReport[] {
-  const packageJsonFiles = findPackageJsonFiles(rootDir, excludePatterns, rootDir);
+  const packageJsonFiles = findPackageJsonFiles(
+    rootDir,
+    excludePatterns,
+    rootDir,
+  );
   const depMap = new Map<string, Map<string, string[]>>();
 
   for (const filePath of packageJsonFiles) {

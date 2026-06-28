@@ -4,7 +4,7 @@
 
 `sddc` is a Node.js CLI tool that scans a directory tree for `package.json`
 files and reports npm packages that are declared with inconsistent versions
-across the workspace.  It is designed for monorepos where a package might
+across the workspace. It is designed for monorepos where a package might
 appear as a dependency in multiple sub-packages.
 
 ---
@@ -39,7 +39,7 @@ index.ts
 ```
 
 `checker.ts`, `options.ts`, `colors.ts`, and `format.ts` have **no side
-effects** beyond filesystem reads/writes inside `checker.ts`.  They contain no
+effects** beyond filesystem reads/writes inside `checker.ts`. They contain no
 calls to `process.exit`, `process.stdout.write`, or `console.*`.
 
 `run.ts` and `interactive.ts` are the only modules that communicate with the
@@ -58,21 +58,21 @@ outside world (via the `RunResult` return value and direct writes to
 
 ```typescript
 interface DependencyUsage {
-  version: string;          // exact string from package.json
-  packageJsonPath: string;  // absolute path
+  version: string; // exact string from package.json
+  packageJsonPath: string; // absolute path
 }
 
 interface DependencyReport {
-  name: string;             // npm package name
-  versions: string[];       // distinct version strings (length > 1 = conflict)
+  name: string; // npm package name
+  versions: string[]; // distinct version strings (length > 1 = conflict)
   usages: DependencyUsage[];
 }
 ```
 
 #### `readSddcIgnore(rootDir: string): string[]`
 
-Reads `<rootDir>/.sddcignore`.  Returns an array of non-empty, non-comment
-lines.  Returns `[]` if the file does not exist or cannot be read.
+Reads `<rootDir>/.sddcignore`. Returns an array of non-empty, non-comment
+lines. Returns `[]` if the file does not exist or cannot be read.
 
 #### `checkDependencies(rootDir, excludePatterns?): DependencyReport[]`
 
@@ -82,16 +82,16 @@ lines.  Returns `[]` if the file does not exist or cannot be read.
 2. For each discovered `package.json`:
    a. Parse JSON; skip on parse failure.
    b. Iterate `dependencies`, `devDependencies`, `peerDependencies`,
-      `optionalDependencies` in that order.
+   `optionalDependencies` in that order.
    c. For each `(name, version)` pair: if the package name has already been
-      recorded for this file (from an earlier field), skip it — preventing
-      spurious self-conflicts when the same package appears in multiple fields.
+   recorded for this file (from an earlier field), skip it — preventing
+   spurious self-conflicts when the same package appears in multiple fields.
    d. Record `(filePath, version)` in an internal `Map<name, Map<version, path[]>>`.
 3. Convert the map to a `DependencyReport[]`, sorted alphabetically by name.
 
 **`findPackageJsonFiles` (internal):**
 
-Recursive directory walk.  On entry into each directory:
+Recursive directory walk. On entry into each directory:
 
 1. Call `readSddcIgnore(dir)` and merge result with the inherited
    `activePatterns` → `patternsForChildren`.
@@ -103,6 +103,7 @@ Recursive directory walk.  On entry into each directory:
 **`shouldExcludeDir` (internal):**
 
 A directory matches a pattern when either:
+
 - its **base name** matches, or
 - its **path relative to `rootDir`** (normalised to forward slashes) matches.
 
@@ -123,11 +124,11 @@ regex metacharacters are literal.
 
 #### Exported constants
 
-| Export         | Type     | Value                                    |
-| -------------- | -------- | ---------------------------------------- |
-| `VERSION`      | `string` | Current package version (`"0.1.0"`)      |
-| `PROGRAM_NAME` | `string` | `"sddc"`                                 |
-| `HELP_TEXT`    | `string` | Full help string printed by `--help`     |
+| Export         | Type     | Value                                |
+| -------------- | -------- | ------------------------------------ |
+| `VERSION`      | `string` | Current package version (`"0.1.0"`)  |
+| `PROGRAM_NAME` | `string` | `"sddc"`                             |
+| `HELP_TEXT`    | `string` | Full help string printed by `--help` |
 
 #### `CliOptions` interface
 
@@ -144,7 +145,7 @@ regex metacharacters are literal.
 
 #### `parseCliArgs(argv, cwd): CliOptions`
 
-Wraps Node's built-in `parseArgs` from `node:util`.  Never throws — parse
+Wraps Node's built-in `parseArgs` from `node:util`. Never throws — parse
 failures are returned as `parseError`.
 
 ---
@@ -153,7 +154,7 @@ failures are returned as `parseError`.
 
 Exports the `C` object (ANSI escape sequences) and `colorize(text, ...codes)`.
 
-`colorize` concatenates the requested codes, the text, and `C.reset`.  It is
+`colorize` concatenates the requested codes, the text, and `C.reset`. It is
 the sole place in the codebase that constructs ANSI escape sequences.
 
 ---
@@ -162,7 +163,7 @@ the sole place in the codebase that constructs ANSI escape sequences.
 
 #### `formatReport(reports, rootDir, useColors, errorsOnly?): string`
 
-Renders the report as a multi-line string.  Layout:
+Renders the report as a multi-line string. Layout:
 
 - **Consistent package** (one version): `✓ <name padded>  <version dimmed>`
 - **Conflicting package** (multiple versions):
@@ -186,7 +187,7 @@ Column widths are computed per-report to align values dynamically.
 
 ```typescript
 interface RunResult {
-  code: number;      // 0 = success, 1 = conflicts or error
+  code: number; // 0 = success, 1 = conflicts or error
   stdout?: string;
   stderr?: string;
 }
@@ -194,7 +195,7 @@ interface RunResult {
 
 #### `run(argv, cwd?): RunResult`
 
-Synchronous.  Flow:
+Synchronous. Flow:
 
 1. `parseCliArgs(argv, cwd)` → return error result if `parseError` is set.
 2. Handle `--help` and `--version` early returns.
@@ -208,7 +209,7 @@ Synchronous.  Flow:
 
 #### `runInteractive(argv, cwd?): Promise<number>`
 
-Async.  Flow:
+Async. Flow:
 
 1. Guard: abort with exit code 1 if `!process.stdin.isTTY`.
 2. `parseCliArgs` → abort on `parseError`.
@@ -228,7 +229,7 @@ prints "Aborted." and calls `process.exit(1)`.
 
 ### 3.7 `index.ts`
 
-Entry point.  Checks argv for `-i` / `--interactive` before delegating:
+Entry point. Checks argv for `-i` / `--interactive` before delegating:
 
 - **Interactive path**: dynamic `import('./interactive.js')` → `runInteractive(argv)` → `process.exit(code)`.
 - **Non-interactive path**: `run(argv)` → write stdout/stderr → `process.exit(code)`.
@@ -269,8 +270,8 @@ packages/internal
 ## 6. Constraints and design decisions
 
 **String-only version comparison.** Semver resolution was deliberately excluded
-to keep the tool simple and dependency-free.  The goal is to detect
-inconsistencies in how versions are *written*, not what they resolve to.
+to keep the tool simple and dependency-free. The goal is to detect
+inconsistencies in how versions are _written_, not what they resolve to.
 
 **No runtime dependencies.** The tool relies entirely on Node.js built-in
 modules (`node:fs`, `node:path`, `node:util`, `node:readline`).
@@ -281,7 +282,7 @@ trivially unit-testable.
 
 **Deduplication within a file.** When the same package appears in both
 `dependencies` and `devDependencies` of the same `package.json`, only the
-first occurrence (from `dependencies`) is counted.  This prevents a single file
+first occurrence (from `dependencies`) is counted. This prevents a single file
 from generating a false conflict with itself.
 
 **`node_modules` and `.git` are hardcoded excludes.** They are skipped before

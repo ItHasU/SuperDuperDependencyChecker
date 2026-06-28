@@ -15,11 +15,13 @@ npm run format:check     # Prettier (check only)
 ```
 
 Run a single test file:
+
 ```bash
 npx vitest run test/checker.test.ts
 ```
 
 Run tests matching a name pattern:
+
 ```bash
 npx vitest run -t "exclude"
 ```
@@ -39,6 +41,7 @@ interactive.ts    Async runInteractive() using readline (interactive path)
 ```
 
 Dependency graph:
+
 ```
 index.ts → run.ts → { checker, format → colors, options }
          → interactive.ts → { checker, colors, options }
